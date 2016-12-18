@@ -1,6 +1,5 @@
 {-# Language MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances #-} 
 
-
 module Interpreter
     (run, Program
     ) where
@@ -216,5 +215,3 @@ print e = tell $ Print e
 
 try :: Program -> Program -> Program
 try block recover = tell $ Try (compile block) (compile recover)
-
-

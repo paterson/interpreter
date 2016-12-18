@@ -1,6 +1,9 @@
 module Main where
 
-import Lib
+import Interpreter
+
+programFromText :: String -> Program
+programFromText s = read s
 
 main :: IO ()
-main = someFunc
+main = run $ programFromText $ readFile "../test.input"

@@ -2,7 +2,7 @@
 
 
 module Interpreter
-    (run
+    (run, Program
     ) where
 
 -- I want my own definition of lookup and I want to write my own function named "print".
@@ -18,11 +18,13 @@ import qualified System.IO as System
 
 -- Monads we'll use
 
-import Control.Monad.Identity
+import Data.Functor.Identity
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Writer
+import Control.Monad.Trans
 import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Writer
 
 -- Expression language
 
@@ -37,11 +39,12 @@ data Expr = Const Val
           | Div Expr Expr
           | And Expr Expr
           | Or  Expr Expr
-          | Not Expr Expr
+          | Not Expr
           | Eq  Expr Expr
           | Gt  Expr Expr
           | Lt  Expr Expr
           | Var String
+          deriving (Show, Read, Eq)
 
 data Statement = Assign String Expr
                | If Expr Statement Statement
@@ -50,7 +53,7 @@ data Statement = Assign String Expr
                | Seq Statement Statement
                | Try Statement Statement
                | Pass
-               deriving (Eq, Show)
+               deriving (Show, Read, Eq)
 
 type Name = String
 type Env = Map.Map Name Val
@@ -101,42 +104,45 @@ eval (Not e0)    = do evalb  (const not) e0 (Const (B True))
 eval (Var s)     = do env <- ask
                       lookup s env
 
-type ProgramState = ProgramState { envs :: [Env] }
+data ProgramState = ProgramState { envs :: [Env] }
 
 currentEnv :: ProgramState -> Env
 currentEnv ps = head $ envs ps
 
 initialProgramState :: ProgramState
-initialProgramState = ProgramState {envs=[Map.Empty]}
+initialProgramState = ProgramState {envs=[Map.empty]} 
 
-type Run a = StateT ProgramState (ExpectT String IO) a
-runRun p = runExpect (runStateT p initialProgramState)
+type Run a = StateT ProgramState (ExceptT String IO) a
+runRun p = runExcept (runStateT p initialProgramState)
 
 set :: (Name, Val) -> Run ()
-set (s,i) = state $ (\ps -> ((), Map.insert s i (currentEnv ps)))
+set (s,i) = state $ (\ps ->
+            let  updatedCurrentEnv = Map.insert s i (currentEnv ps)
+                 tailEnvs          = tail $ envs ps
+            in  ((), ProgramState{envs=updatedCurrentEnv:tailEnvs}))
 
 exec :: Statement -> Run ()
 exec (Assign s v)    = do
                          st <- get
-                         Right val <- return $ runEval st (eval v)
+                         Right val <- return $ runEval (currentEnv st) (eval v)
                          set (s,val)
 
 exec (Seq s0 s1)     = do exec s0 >> exec s1
 
 exec (Print e)       = do
                          st <- get
-                         Right val <- return $ runEval st (eval e)
+                         Right val <- return $ runEval (currentEnv st) (eval e)
                          liftIO $ System.print val
                          return ()
 
 exec (If cond s0 s1) = do
                          st <- get
-                         Right (B val) <- return $ runEval st (eval cond)
+                         Right (B val) <- return $ runEval (currentEnv st) (eval cond)
                          if val then do exec s0 else do exec s1
 
 exec (While cond s)  = do
                          st <- get
-                         Right (B val) <- return $ runEval st (eval cond)
+                         Right (B val) <- return $ runEval (currentEnv st) (eval cond)
                          if val then do exec s >> exec (While cond s) else return()
 
 exec (Try s0 s1)     = do catchError (exec s0) (\e -> exec s1)

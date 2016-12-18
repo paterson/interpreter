@@ -1,0 +1,9 @@
+"arg"     .= int 10
+"scratch" .= var "arg"
+"total"   .= int 1
+while ( (var "scratch") `Gt` (int 1) ) ( do
+  "total"   .=  "total" .* "scratch"
+  "scratch" .= "scratch" .- (1::Int)
+  print $ var "scratch" 
+)
+print $ var "total"

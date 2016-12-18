@@ -7,5 +7,5 @@ programFromText s = read s
 
 main :: IO ()
 main = do
-         f <- readFile "../test.input"
+         f <- readFile "test.input"
          run $ programFromText f

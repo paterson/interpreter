@@ -6,4 +6,6 @@ programFromText :: String -> Program
 programFromText s = read s
 
 main :: IO ()
-main = run $ programFromText $ readFile "../test.input"
+main = do
+         f <- readFile "../test.input"
+         run $ programFromText f

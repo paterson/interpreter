@@ -21,6 +21,9 @@ library
                      , containers
                      , transformers
                      , mtl
+                     , ansi-terminal
+                     , concurrent-output
+                     , stm
   default-language:    Haskell2010
 
 executable interpreter-exe

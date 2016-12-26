@@ -13,7 +13,7 @@ type Program = Writer Statement ()
 instance Monoid Statement where
   mempty = Pass
   --mappend a b = do exec a >> exec Debug >> exec b
-  mappend a b = (Debug a) `Seq` b
+  mappend a b = (Debug a) `Seq` (Debug b)
 
 compile :: Program -> Statement
 compile p = snd . runIdentity $ runWriterT p

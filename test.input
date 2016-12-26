@@ -1,9 +1,9 @@
-"arg"     .= int 10
-"scratch" .= var "arg"
-"total"   .= int 1
-while ( (var "scratch") `Gt` (int 1) ) (
- do "total"   .=  "total" .* "scratch"
-    "scratch" .= "scratch" .- (1::Int)
-    print $ var "scratch" 
- )
-print $ var "total"
+Assign "arg" (Const (I 10))
+Assign "scratch" (Var "arg")
+Assign "total" (Const (I 1))
+While (Gt (Var "scratch") (Const (I 1))) (Seq (
+Assign "total" (Mul (Var "total")(Var "scratch"))
+Assign "scratch" (Sub (Var "scratch") (Const (I 1)))
+Print (Var "scratch")
+))
+(Print (Var "total"))

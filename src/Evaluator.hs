@@ -11,6 +11,7 @@ import Control.Monad.Trans.Reader
 
 data Val = I Int
          | B Bool
+         | Null
          deriving (Show, Read, Eq)
 
 data Expr = Const Val
@@ -85,17 +86,21 @@ data Statement = Assign String Expr
                | Pass
                | Debug Statement
                | Debug' Statement
-               | DebugPrint Expr
+               | DebugPrint String
                | DebugStepBack
+               | DebugTidyTree
                deriving (Show, Read, Eq)
 
-data ProgramState = ProgramState { envs :: [Env], statements :: [Statement] }
+data ProgramState = ProgramState { envs :: [Env], statements :: [Statement], outputs :: [Val] }
 
 currentEnv :: ProgramState -> Env
-currentEnv ps = head $ envs ps
+currentEnv ps = case length (envs ps) of
+                  0 -> Map.empty
+                  _ -> head $ envs ps
 
+-- last statement is second statement as 'tick' has occured, adding the next statement
 lastStatement :: ProgramState -> Statement
-lastStatement ps = head $ statements ps
+lastStatement ps = head $ tail $ statements ps
 
 initialProgramState :: ProgramState
-initialProgramState = ProgramState {envs=[Map.empty], statements=[]}
+initialProgramState = ProgramState {envs=[], statements=[], outputs=[]}

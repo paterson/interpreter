@@ -1,5 +1,5 @@
 module Color
-  (red, green, blue, yellow
+  (red, green, blue, yellow, cyan
   ) where
 
 colorify :: String -> Int -> String
@@ -16,3 +16,6 @@ blue str = colorify str 34
 
 yellow :: String -> String
 yellow str = colorify str 33
+
+cyan :: String -> String
+cyan str = colorify str 36

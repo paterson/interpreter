@@ -110,27 +110,37 @@ printTree :: Statement -> Run ()
 printTree s = do st <- get
                  let statements' = tail $ statements st
                  let list = zipWithPadding Pass ("", Null) Null (reverse statements') (Map.toList (currentEnv st)) (reverse (outputs st))
-                 liftIO $ clearScreen
+                 clearTerminal
+                 liftIO $ printTreeHeader
                  liftIO $ mapM_ (putStrLn . printTreeLine) $ list
                  liftIO $ putStrLn $ printCurrentStatement s
 
+printTreeHeader :: IO ()
+printTreeHeader = do liftIO $ putStrLn $ "File" ++ (nspaces (60-4)) ++ "Variables" ++ (nspaces (60-9)) ++ "Output"
+                     liftIO $ putStrLn $ "====" ++ (nspaces (60-4)) ++ "=========" ++ (nspaces (60-9)) ++ "======"
+
 printTreeLine :: (Statement, (Name, Val), Val) -> String
-printTreeLine (s, var, val) = (yellow $ statementToString s) ++ spaces ++ printVariable var ++ spaces' ++ printOutput val
+printTreeLine (s, var, val) = (cyan $ statementToString s) ++ spaces ++ printVariable var ++ spaces' ++ printOutput val
                   where spaces = nspaces (60 - l)
-                        spaces' = nspaces (100 - l')
-                        l = length $ statementToString s
+                        spaces' = nspaces (60 - l')
+                        l  = length $ statementToString s
                         l' = length $ printVariable var
 
 printCurrentStatement :: Statement -> String
-printCurrentStatement s = red $ "> " ++ statementToString s
+printCurrentStatement s = green $ "> " ++ statementToString s
 
 printVariable :: (Name, Val) -> String
 printVariable (_, Null) = ""
-printVariable (n, v)    = "Variable: " ++ n ++ " Value: " ++ (show v)
+printVariable (n, v)    = "Variable: " ++ (blue n) ++ " Value: " ++ (blue (show v))
 
 printOutput :: Val -> String
 printOutput Null = ""
 printOutput s    = show s
+
+-- Clear screen twice ensures we are at the bottom of the screen.
+clearTerminal :: Run ()
+clearTerminal = do liftIO $ clearScreen
+                   liftIO $ clearScreen
 
 statementToString :: Statement -> String
 statementToString (While cond _) = "While " ++ (show cond) ++ " do"

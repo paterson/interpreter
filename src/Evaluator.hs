@@ -85,9 +85,6 @@ data Statement = Assign String Expr
                | Try Statement Statement
                | Pass
                | Debug Statement
-               | Debug' Statement
-               | DebugPrint String
-               | DebugStepBack
                | DebugTidyTree
                deriving (Show, Read, Eq)
 

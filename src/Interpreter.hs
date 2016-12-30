@@ -1,5 +1,5 @@
 module Interpreter
-    (run, programFromText, testProgram
+   (Program, run, verify, programFromText, testProgram, failingProgram
     ) where
 
 import Color
@@ -54,20 +54,7 @@ exec (Debug (Seq s0 s1))  = exec (Seq s0 s1)                     -- Ignore this 
 exec (Debug s)            = do tick s
                                printTree s
                                printInstructions
-                               exec (Debug' s)
-exec (Debug' s)           = do input <- liftIO $ getLine
-                               case input of
-                                 "next" -> exec s
-                                 "back" -> do exec DebugStepBack >> exec (Debug s)
-                                 _      -> do exec (DebugPrint input) >> exec (Debug' s)
-                               return ()
-exec (DebugPrint n)       = do st <- get
-                               liftIO $ mapM_ putStrLn $ printVarHistory (envs st) n
-                               return ()
-exec DebugStepBack        = do st <- get
-                               let statement = lastStatement st
-                               stepback
-                               exec (Debug statement) -- st is old state so this is fine.
+                               prompt s
 exec DebugTidyTree        = do st <- get
                                clearFromTree (lastStatement st)
 
@@ -79,13 +66,29 @@ run p = do result <- runExceptT $ (runStateT (exec (compile p)) initialProgramSt
              Right ((), _) -> return ()
              Left exn      -> System.print $ "Uncaught exception: " ++ exn
 
+prompt :: Statement -> Run ()
+prompt s = do input <- liftIO $ getLine
+              case input of
+                "next" -> exec s
+                "back" -> do stepback
+                             exec (Debug s)
+                _      -> do inspect input
+                             prompt s
+
 tick :: Statement -> Run ()
 tick s = do st <- get
             put $ ProgramState{ envs = (currentEnv st):(envs st), statements = s:(statements st), outputs = (outputs st) }
 
 stepback :: Run ()
 stepback = do st <- get
-              put $ ProgramState{ envs = (tail $ envs st), statements = (tail $ (tail $ statements st)), outputs = (outputs st) }
+              let statement = lastStatement st
+              put $ ProgramState{ envs = (tail $ (tail $ envs st)), statements = (tail $ (tail $ statements st)), outputs = (outputs st) }
+              exec (Debug statement)
+
+inspect :: String -> Run ()
+inspect v = do st <- get
+               liftIO $ mapM_ putStrLn $ printVarHistory (envs st) v
+               return ()
 
 clearFromTree :: Statement -> Run ()
 clearFromTree s = do st <- get

@@ -1,12 +1,13 @@
 {-# Language MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances #-}
 
-module Program (Program, programFromText, testProgram, compile) where
+module Program (Program, compile, verify, programFromText, testProgram, failingProgram) where
 
 
 import Prelude hiding (print)
 import Evaluator
 import Control.Monad.Trans.Writer
 import Data.Functor.Identity
+import Data.List
 
 type Program = Writer Statement ()
 
@@ -16,6 +17,35 @@ instance Monoid Statement where
 
 compile :: Program -> Statement
 compile p = snd . runIdentity $ runWriterT p
+
+-- Detect unused variables
+-- \\ gives the difference between two lists so I can remove all used variables using it.
+verify :: Program -> [String]
+verify p = verify' (compile p)  []
+
+verify' :: Statement -> [String] -> [String]
+verify' (Debug s         ) acc = verify' s acc
+verify' (Seq s0 s1       ) acc = verify' s1 (verify' s0 acc)
+verify' (Assign n e      ) acc = (n:acc) \\ (variablesInExpr e)
+verify' (If e s0 s1      ) acc = verify' s1 (verify' s0 (acc \\ (variablesInExpr e)))
+verify' (While e s0      ) acc = verify' s0 (acc \\ (variablesInExpr e))
+verify' (Print e         ) acc = acc \\ (variablesInExpr e)
+verify' (Try s0 s1       ) acc = verify' s1 (verify' s0 acc)
+verify' _                  acc = acc
+
+variablesInExpr :: Expr -> [String]
+variablesInExpr (Var s    ) = [s]
+variablesInExpr (Add e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Sub e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Mul e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Div e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (And e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Or  e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Eq  e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Gt  e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Lt  e0 e1) = variablesInExpr e0 ++ variablesInExpr e1
+variablesInExpr (Not e0   ) = variablesInExpr e0
+variablesInExpr _           = []
 
 -- * Syntactic Sugar *
 int = Const . I
@@ -69,9 +99,22 @@ programFromText s = read s
 
 testProgram :: Program
 testProgram = do
-                "arg"     .= int 10
-                "scratch" .= var "arg"
-                "total"   .= int 1
+                "arg"       .= int 10
+                "scratch"   .= var "arg"
+                "total"     .= int 1
+                while ( (var "scratch") `Gt` (int 1) ) (
+                 do "total"   .=  "total" .* "scratch"
+                    "scratch" .= "scratch" .- (1::Int)
+                    print $ var "scratch"
+                 )
+                print $ var "total"
+
+failingProgram :: Program
+failingProgram = do
+                "arg"       .= int 10
+                "unusedvar" .= int 4
+                "scratch"   .= var "arg"
+                "total"     .= int 1
                 while ( (var "scratch") `Gt` (int 1) ) (
                  do "total"   .=  "total" .* "scratch"
                     "scratch" .= "scratch" .- (1::Int)

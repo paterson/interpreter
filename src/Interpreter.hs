@@ -140,16 +140,16 @@ printOutput :: Val -> String
 printOutput Null = ""
 printOutput s    = show s
 
--- Clear screen twice ensures we are at the bottom of the screen.
-clearTerminal :: Run ()
-clearTerminal = do liftIO $ clearScreen
-                   liftIO $ clearScreen
-
 statementToString :: Statement -> String
 statementToString (While cond _) = "While " ++ (show cond) ++ " do"
 statementToString (If cond _ _)  = "If " ++ (show cond) ++ " do"
 statementToString Pass           = ""                                  -- Don't bother printing pass statements
 statementToString s              = show s
+
+-- Clear screen twice ensures we are at the bottom of the screen.
+clearTerminal :: Run ()
+clearTerminal = do liftIO $ clearScreen
+                   liftIO $ clearScreen
 
 -- Normalize's lengths of zipped lists (So will fill with standard defaults)
 zipWithPadding :: a -> b -> c -> [a] -> [b] -> [c] -> [(a,b,c)]
@@ -160,4 +160,4 @@ zipWithPadding a b c xs     []     zs     = zipWithPadding a b c xs [b] zs
 zipWithPadding a b c xs     ys     []     = zipWithPadding a b c xs ys [c]
 
 nspaces :: Int -> String
-nspaces i = take i (repeat ' ')
+nspaces n = take n (repeat ' ')

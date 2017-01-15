@@ -6,11 +6,10 @@ import System.Environment(getArgs)
 
 main :: IO ()
 main = do args <- getArgs
-          let unusedVars = verify (program args)
+          file <- readFile $ args !! 0
+          let program = programFromText file
+          putStrLn $ show program
+          let unusedVars = verify program
           case unusedVars of
-           [] -> run (program args)
+           [] -> run program
            _  -> putStrLn $ "Unused Variables: " ++  (intercalate ", " unusedVars)
-
-program :: [String] -> Program
-program ["fail"] = failingProgram
-program _        = testProgram -- programFromText $ readFile "test.input"

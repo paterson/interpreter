@@ -13,7 +13,7 @@ type Program = Writer Statement ()
 
 instance Monoid Statement where
   mempty = Pass
-  mappend a b = (Debug a) `Seq` (Debug b)
+  mappend a b = a `Seq` b
 
 compile :: Program -> Statement
 compile p = snd . runIdentity $ runWriterT p
@@ -95,7 +95,9 @@ try block recover = tell $ Try (compile block) (compile recover)
 -- Helpers
 
 programFromText :: String -> Program
-programFromText s = read s
+programFromText str = writer((), statement)
+                      where statement   = mconcat statements'
+                            statements' = map (\x -> read x :: Statement) (lines str)
 
 testProgram :: Program
 testProgram = do
@@ -120,4 +122,4 @@ failingProgram = do
                     "scratch" .= "scratch" .- (1::Int)
                     print $ var "scratch"
                  )
-                print $ var "total"
+                print $ var "total" 

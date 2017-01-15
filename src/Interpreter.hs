@@ -36,18 +36,17 @@ exec                      :: Statement -> Run ()
 exec (Assign s v)         = do st <- get
                                Right val <- return $ runEval (currentEnv st) (eval v)
                                set (s,val)
-exec (Seq s0 s1)          = do exec s0 >> exec s1
+exec (Seq s0 s1)          = do exec (Debug s0) >> exec (Debug s1)
 exec (Print e)            = do st <- get
                                Right val <- return $ runEval (currentEnv st) (eval e)
                                put $ ProgramState{ envs = (envs st), statements = (statements st), outputs = val:(outputs st) }
-                               liftIO $ System.print val
                                return ()
 exec (If cond s0 s1)      = do st <- get
                                Right (B val) <- return $ runEval (currentEnv st) (eval cond)
                                if val then do exec (Debug s0) else do exec (Debug s1)
 exec (While cond s)       = do st <- get
                                Right (B val) <- return $ runEval (currentEnv st) (eval cond)
-                               if val then do exec s >> exec DebugTidyTree >> exec (Debug (While cond s)) else return()
+                               if val then do exec (Debug s) >> exec DebugTidyTree >> exec (Debug (While cond s)) else return()
 exec (Try s0 s1)          = do catchError (exec s0) (\_ -> exec s1)
 exec Pass                 = return ()
 exec (Debug (Seq s0 s1))  = exec (Seq s0 s1)                     -- Ignore this case as it's just chaining
@@ -66,14 +65,33 @@ run p = do result <- runExceptT $ (runStateT (exec (compile p)) initialProgramSt
              Right ((), _) -> return ()
              Left exn      -> System.print $ "Uncaught exception: " ++ exn
 
+-- ** Prompts **
+-- Pattern match on input and first character so we can ensure the inspect command starts with a colon.
+-- Re-prompt if string is empty (this also prevents head input from failing because of lazy evaluation)
 prompt :: Statement -> Run ()
 prompt s = do input <- liftIO $ getLine
-              case input of
-                "next" -> exec s
-                "back" -> do stepback
-                             exec (Debug s)
-                _      -> do inspect input
-                             prompt s
+              case (input, head input) of
+                ("",_)     -> prompt s
+                ("next",_) -> exec s
+                ("back",_) -> do stepback
+                                 exec (Debug s)
+                (_,':')    -> do inspect $ tail input
+                                 printHistoryInstructions
+                                 historyprompt s
+                (_,'|')    -> exec (read (tail input) :: Statement)
+                (_,_)      -> do liftIO $ putStrLn . red $ "Unknown command " ++ input
+                                 printInstructions
+                                 prompt s
+
+historyprompt :: Statement -> Run ()
+historyprompt s = do input <- liftIO $ getLine
+                     case input of
+                       "done" -> do printTree s
+                                    printInstructions
+                                    prompt s
+                       _      -> return ()
+
+-- ** Operations **
 
 tick :: Statement -> Run ()
 tick s = do st <- get
@@ -86,9 +104,7 @@ stepback = do st <- get
               exec (Debug statement)
 
 inspect :: String -> Run ()
-inspect v = do st <- get
-               liftIO $ mapM_ putStrLn $ printVarHistory (envs st) v
-               return ()
+inspect v = printVarHistory v
 
 clearFromTree :: Statement -> Run ()
 clearFromTree s = do st <- get
@@ -97,16 +113,13 @@ clearFromTree s = do st <- get
                        (While _ _) -> return ()
                        _           -> clearFromTree $ lastStatement st
 
-printVarHistory :: [Env] -> Name -> [String]
-printVarHistory xs var = map (printVarAtEnv var) (reverse xs)
-
-printVarAtEnv :: Name -> Env -> String
-printVarAtEnv var env = case Map.lookup var env of
-                           Just val -> red $ "Value: " ++ (show val)
-                           Nothing  -> red $ "Value: Not Set"
+-- ** Print operations **
 
 printInstructions :: Run ()
-printInstructions = liftIO $ putStrLn "Enter 'next' to proceed, 'back' to step back, 'skip' to skip and any variable name to view it's value"
+printInstructions = liftIO $ putStrLn "Enter 'next' to proceed, 'back' to step back and ':variable_name' to view a variable's value"
+
+printHistoryInstructions :: Run ()
+printHistoryInstructions = liftIO $ putStrLn "Enter 'done' to return."
 
 -- Takes in next statement and prints it with the rest of the history tree
 printTree :: Statement -> Run ()
@@ -118,16 +131,32 @@ printTree s = do st <- get
                  liftIO $ mapM_ (putStrLn . printTreeLine) $ list
                  liftIO $ putStrLn $ printCurrentStatement s
 
+printVarHistory :: Name -> Run()
+printVarHistory v = do st <- get
+                       let statements' = tail $ statements st
+                       let envs'       = tail $ envs st
+                       let varhist     = reverse $ map (variableFromEnv v) envs'
+                       let list = zipWithPadding Pass ("", Null) Null (reverse statements') varhist []
+                       clearTerminal
+                       liftIO $ printTreeHeader'
+                       liftIO $ mapM_ (putStrLn . printTreeLine) $ list
+
+-- Tree header for normal tree
 printTreeHeader :: IO ()
-printTreeHeader = do liftIO $ putStrLn $ "File" ++ (nspaces (60-4)) ++ "Variables" ++ (nspaces (60-9)) ++ "Output"
-                     liftIO $ putStrLn $ "====" ++ (nspaces (60-4)) ++ "=========" ++ (nspaces (60-9)) ++ "======"
+printTreeHeader = do liftIO $ putStrLn $ "Statements" ++ (nspaces (60-10)) ++ "Variables" ++ (nspaces (60-9)) ++ "Output"
+                     liftIO $ putStrLn $ "==========" ++ (nspaces (60-10)) ++ "=========" ++ (nspaces (60-9)) ++ "======"
+
+-- Tree header for history tree
+printTreeHeader' :: IO ()
+printTreeHeader' = do liftIO $ putStrLn $ "Statements" ++ (nspaces (60-10)) ++ "Value at Point of execution"
+                      liftIO $ putStrLn $ "==========" ++ (nspaces (60-10)) ++ "==========================="
 
 printTreeLine :: (Statement, (Name, Val), Val) -> String
-printTreeLine (s, var, val) = (cyan $ statementToString s) ++ spaces ++ printVariable var ++ spaces' ++ printOutput val
-                  where spaces = nspaces (60 - l)
-                        spaces' = nspaces (60 - l')
-                        l  = length $ statementToString s
-                        l' = length $ printVariable var
+printTreeLine (s, var, val) = (cyan $ statementToString s) ++ spaces ++ (printVariable var) ++ spaces' ++ (printOutput val)
+                              where spaces  = nspaces (60 - l)
+                                    spaces' = nspaces (60 - l')
+                                    l       = length $ statementToString s
+                                    l'      = length $ printVariable var
 
 printCurrentStatement :: Statement -> String
 printCurrentStatement s = green $ "> " ++ statementToString s
@@ -139,6 +168,13 @@ printVariable (n, v)    = "Variable: " ++ (blue n) ++ " Value: " ++ (blue (show 
 printOutput :: Val -> String
 printOutput Null = ""
 printOutput s    = show s
+
+-- ** Utils **
+
+variableFromEnv :: Name -> Env -> (Name, Val)
+variableFromEnv var env = case Map.lookup var env of
+                              Just val -> (var, val)
+                              Nothing  -> ("", Null)
 
 statementToString :: Statement -> String
 statementToString (While cond _) = "While " ++ (show cond) ++ " do"

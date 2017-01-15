@@ -15,8 +15,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Interpreter, Program
-  other-modules:       Color, Evaluator
+  exposed-modules:     Interpreter, Program, Evaluator
+  other-modules:       Color
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , transformers

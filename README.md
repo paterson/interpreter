@@ -17,7 +17,9 @@
 ![Screenshot](http://i.imgur.com/oMROMii.png)
 
 The file column is the statements that have been executed, and the statement that is next to be executed.
+
 The variables column is the current environment.
+
 The output column is the accumulated output for the program so far.
 
 ## Setup

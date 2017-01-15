@@ -78,7 +78,8 @@ prompt s = do input <- liftIO $ getLine
                 (_,':')    -> do inspect $ tail input
                                  printHistoryInstructions
                                  historyprompt s
-                (_,'|')    -> exec (read (tail input) :: Statement)
+                (_,'|')    -> do exec (read (tail input) :: Statement)
+                                 prompt s
                 (_,_)      -> do liftIO $ putStrLn . red $ "Unknown command " ++ input
                                  printInstructions
                                  prompt s

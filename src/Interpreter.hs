@@ -116,7 +116,7 @@ clearFromTree s = do st <- get
 -- ** Print operations **
 
 printInstructions :: Run ()
-printInstructions = liftIO $ putStrLn "Enter 'next' to proceed, 'back' to step back and ':variable_name' to view a variable's value"
+printInstructions = liftIO $ putStrLn "Enter 'next' to proceed, 'back' to step back and ':<variablename>' to view a variable's value"
 
 printHistoryInstructions :: Run ()
 printHistoryInstructions = liftIO $ putStrLn "Enter 'done' to return."

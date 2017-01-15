@@ -27,12 +27,12 @@ The program can be executed by passing in the path to the file as the first argu
 
 Run the interpreter with the input file test.input:
 ```bash
-stack exec interpreter-exe test.input
+stack exec interpreter-exe tests/test.input
 ```
 
 To test the static analysis for detecting unused variables, just use the failingtest.input file:
 ```bash
-stack exec interpreter-exe failingtest.input
+stack exec interpreter-exe tests/failingtest.input
 ```
 
 ## Commands

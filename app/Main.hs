@@ -8,7 +8,6 @@ main :: IO ()
 main = do args <- getArgs
           file <- readFile $ args !! 0
           let program = programFromText file
-          putStrLn $ show program
           let unusedVars = verify program
           case unusedVars of
            [] -> run program

@@ -10,7 +10,7 @@
 - [x] Inspect History of variable
 - [x] Step Backwards through program
 - [x] Static Analysis to detect unused variables
-- [x] Bonus: Execute arbitrary statements at any stage.
+- [x] Bonus: Interactively execute arbitrary statements at any stage.
 
 ## Screenshot
 
